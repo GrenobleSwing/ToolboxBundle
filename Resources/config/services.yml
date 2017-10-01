@@ -1,0 +1,16 @@
+services:
+    gstoolbox.account_balance:
+        class: GS\ToolboxBundle\Services\AccountBalanceService
+        arguments: [ '@doctrine.orm.entity_manager' ]
+
+    gstoolbox.user.membership:
+        class: GS\ToolboxBundle\Services\MembershipService
+        arguments: [ '@doctrine.orm.entity_manager' ]
+
+    gstoolbox.registration.service:
+        class: GS\ToolboxBundle\Services\RegistrationService
+        arguments: [ '@doctrine.orm.entity_manager', '@mailer', '@lexik_mailer.message_factory' ]
+
+    gstoolbox.payment.service:
+        class: GS\ToolboxBundle\Services\PaymentService
+        arguments: [ '@mailer', '@lexik_mailer.message_factory' ]
