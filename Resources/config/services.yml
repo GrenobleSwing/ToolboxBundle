@@ -1,7 +1,7 @@
 services:
     gstoolbox.account_balance:
         class: GS\ToolboxBundle\Services\AccountBalanceService
-        arguments: [ '@doctrine.orm.entity_manager' ]
+        arguments: [ '@doctrine.orm.entity_manager', '@gstoolbox.user.membership' ]
 
     gstoolbox.user.membership:
         class: GS\ToolboxBundle\Services\MembershipService
