@@ -14,3 +14,13 @@ services:
     gstoolbox.payment.service:
         class: GS\ToolboxBundle\Services\PaymentService
         arguments: [ '@mailer', '@lexik_mailer.message_factory' ]
+
+    gstoolbox.ipn.listener:
+        class: GS\ToolboxBundle\EventListener\IpnListener
+        arguments:
+            - '%kernel.root_dir%'
+            - '@filesystem'
+            - '@doctrine.orm.entity_manager'
+            - '@gstoolbox.payment.service'
+        tags:
+            - { name: kernel.event_listener, event: gs_etran.ipn.received, method: onIpnReceived }
