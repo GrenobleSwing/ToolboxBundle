@@ -7,6 +7,7 @@ use Doctrine\ORM\EntityManager;
 use GS\StructureBundle\Entity\Account;
 use GS\StructureBundle\Entity\Activity;
 use GS\StructureBundle\Entity\Category;
+use GS\StructureBundle\Entity\Certificate;
 use GS\StructureBundle\Entity\Discount;
 use GS\StructureBundle\Entity\Payment;
 use GS\StructureBundle\Entity\PaymentItem;
