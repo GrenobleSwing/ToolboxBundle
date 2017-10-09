@@ -82,12 +82,12 @@ class AccountBalanceService
 
             $discounts = $category->getDiscounts();
             $discount = $this->chooseDiscount($i, $account, $category,
-                    $activity->getYear(), $discounts);
+                $activity->getYear(), $discounts);
 
-                $line = $this->getPriceToPay($registration, $category, $discount);
+            $line = $this->getPriceToPay($registration, $category, $discount);
             $line['title'] = $displayName;
             $details[] = $line;
-                $totalBalance += $line['balance'];
+            $totalBalance += $line['balance'];
 
             if (null !== $payment) {
                 $paymentItem = new PaymentItem();
@@ -128,7 +128,9 @@ class AccountBalanceService
 
     private function getPriceToPay(Registration $registration, Category $category, Discount $discount = null)
     {
-        $price = $category->getPrice();
+        $isSemester = $registration->getSemester();
+        $coeff = $isSemester ? 0.5 : 1.0;
+        $price = $coeff * $category->getPrice();
         $alreadyPaid = $registration->getAmountPaid();
 
         $line = array(
@@ -142,8 +144,8 @@ class AccountBalanceService
                 $line['discount'] = '-' . $discount->getValue() . '%';
                 $due *= 1 - $discount->getValue() / 100;
             } else {
-                $line['discount'] = '-' . $discount->getValue() . '&euro;';
-                $due -= $discount->getValue();
+                $line['discount'] = '-' . $coeff * $discount->getValue() . '&euro;';
+                $due -= $coeff * $discount->getValue();
             }
         } else {
             $line['discount'] = '';
