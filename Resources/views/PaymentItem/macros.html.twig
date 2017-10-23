@@ -1,0 +1,8 @@
+
+{% macro print(item) %}
+    {{ item.registration.topic.title }} -
+    {{ item.amount }} &euro;
+    {% if item.discount %}
+        ({{- item.discount.name -}})
+    {% endif %}
+{% endmacro %}
