@@ -7,19 +7,22 @@ use Lexik\Bundle\MailerBundle\Message\MessageFactory;
 
 use GS\StructureBundle\Entity\User;
 use GS\StructureBundle\Entity\Registration;
+use GS\ToolboxBundle\Services\MembershipService;
 
 class RegistrationService
 {
     private $entityManager;
     private $mailer;
     private $messageFactory;
+    private $membershipService;
 
     public function __construct(EntityManager $entityManager, \Swift_Mailer $mailer,
-            MessageFactory $messageFactory)
+            MessageFactory $messageFactory, MembershipService $membershipService)
     {
         $this->entityManager = $entityManager;
         $this->mailer = $mailer;
         $this->messageFactory = $messageFactory;
+        $this->membershipService = $membershipService;
     }
 
     public function cleanPayments(Registration $registration)
@@ -95,6 +98,21 @@ class RegistrationService
         if (in_array(Registration::VALIDATE, $registration->getTopic()->getActivity()->getTriggeredEmails())) {
             $this->sendEmail($registration, Registration::VALIDATE);
         }
+
+        $account = $registration->getAccount();
+        $year = $registration->getTopic()->getActivity()->getYear();
+        if ($registration->getTopic()->getCategory()->getCanBeFreeTopicForTeachers() &&
+            $this->membershipService->isTeacher($account, $year)) {
+
+            $count = $this->entityManager
+                ->getRepository('GSStructureBundle:Registration')
+                ->countFreeTopicsForAccountAndYear($account, $year);
+
+            if ($count < $year->getNumberOfFreeTopicPerTeacher()) {
+                $registration->setState('FREE');
+            }
+        }
+
         return true;
     }
 
