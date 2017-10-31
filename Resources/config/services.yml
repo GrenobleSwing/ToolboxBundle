@@ -9,7 +9,11 @@ services:
 
     gstoolbox.registration.service:
         class: GS\ToolboxBundle\Services\RegistrationService
-        arguments: [ '@doctrine.orm.entity_manager', '@mailer', '@lexik_mailer.message_factory' ]
+        arguments:
+            - '@doctrine.orm.entity_manager'
+            - '@mailer'
+            - '@lexik_mailer.message_factory'
+            - '@gstoolbox.user.membership'
 
     gstoolbox.payment.service:
         class: GS\ToolboxBundle\Services\PaymentService
