@@ -37,6 +37,17 @@ class AccountBalanceService
     {
         $registrations = $this->getRegistrations($account, $activity);
 
+        // Add the adhesion if it is missing (adhesion is mandatory but
+        // it has been removed by the user)
+        $newRegistration = null;
+        foreach ($registrations as $registration) {
+            $newRegistration = $this->membershipService->fulfillMembershipRegistration($registration);
+            if ($newRegistration !== null) {
+                $registrations[] = $newRegistration;
+                break;
+            }
+        }
+
         if (count($registrations)) {
             $payment = new Payment();
             $payment->setType('CARD');

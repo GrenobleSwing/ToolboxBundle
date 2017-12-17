@@ -5,6 +5,7 @@ namespace GS\ToolboxBundle\Services;
 use Doctrine\ORM\EntityManager;
 
 use GS\StructureBundle\Entity\Account;
+use GS\StructureBundle\Entity\Registration;
 use GS\StructureBundle\Entity\Year;
 
 class MembershipService
@@ -82,6 +83,30 @@ class MembershipService
         }
 
         return $accounts;
+    }
+
+    // Check if the membership is mandatory for the Registration
+    // and do the needed work in case it is.
+    // Return the created Registration if the adhesion was missing, null otherwise
+    public function fulfillMembershipRegistration (Registration $registration) {
+        $topic = $registration->getTopic();
+        $account = $registration->getAccount();
+        $activity = $topic->getActivity();
+        $year = $activity->getYear();
+
+        if ($activity->getMembersOnly() &&
+                !($this->isMember($account, $year) ||
+                $this->isAlmostMember($account, $year)) &&
+                null !== $activity->getMembershipTopic()) {
+            $membership = new Registration();
+            $membership->setAccount($account);
+            $membership->setTopic($activity->getMembershipTopic());
+            $membership->setAcceptRules($registration->getAcceptRules());
+            $membership->validate();
+            $this->entityManager->persist($membership);
+            return $membership;
+        }
+        return null;
     }
 
 }
