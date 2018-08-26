@@ -151,29 +151,13 @@ class AccountBalanceService
         $due = $price;
 
         if (null !== $discount) {
-            if($discount->getType() == 'percent') {
-                $line['discount'] = '-' . $discount->getValue() . '%';
-                $due *= 1 - $discount->getValue() / 100;
-            } else {
-                $line['discount'] = '-' . $coeff * $discount->getValue() . '&euro;';
-                $due -= $coeff * $discount->getValue();
-            }
+            $due -= $coeff * $discount->getAmount($price);
         } else {
             $line['discount'] = '';
         }
 
         $line['balance'] = $due - $alreadyPaid;
         return $line;
-    }
-
-    private function getDiscountAmount (Category $category, Discount $discount)
-    {
-        $price = $category->getPrice();
-        if($discount->getType() == 'percent') {
-            return $price * $discount->getValue() / 100;
-        } else {
-            return $discount->getValue();
-        }
     }
 
     private function chooseDiscount($i, Account $account, Category $category, Year $year, $discounts)
@@ -190,7 +174,7 @@ class AccountBalanceService
                     ($this->isStudent($account) && $discount->getCondition() == 'student') ||
                     ($this->isUnemployed($account) && $discount->getCondition() == 'unemployed') ||
                     ($this->membershipService->isAlmostMember($account, $year) && $discount->getCondition() == 'member')) {
-                $amount = $this->getDiscountAmount($category, $discount);
+                $amount = $discount->getAmount($category->getPrice());
             }
 
             if ($amount > $maxAmount) {

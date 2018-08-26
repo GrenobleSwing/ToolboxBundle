@@ -3,10 +3,16 @@
 namespace GS\ToolboxBundle\EventListener;
 
 use Doctrine\ORM\EntityManager;
-use GS\StructureBundle\Entity\Invoice;
-use GS\ToolboxBundle\Services\PaymentService;
+use GS\ETransactionBundle\Entity\Environment;
+use GS\ETransactionBundle\Entity\Payment as ETPayment;
 use GS\ETransactionBundle\Event\IpnEvent;
+use GS\StructureBundle\Entity\Invoice;
+use GS\StructureBundle\Entity\Payment;
+use GS\ToolboxBundle\Services\PaymentService;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Twig_Environment;
 
 class IpnListener
 {
@@ -31,17 +37,47 @@ class IpnListener
     private $ps;
 
     /**
+     * @var ContainerInterface
+     */
+    private $container;
+
+    /**
+     * @var UrlGeneratorInterface
+     */
+    private $router;
+
+    /**
+     * @var Twig_Environment
+     */
+    private $twig;
+
+    /**
      * Constructor.
      *
      * @param string     $rootDir
      * @param Filesystem $filesystem
      */
-    public function __construct($rootDir, Filesystem $filesystem, EntityManager $entityManager, PaymentService $ps)
+    public function __construct($rootDir, Filesystem $filesystem, EntityManager $entityManager, PaymentService $ps,
+            ContainerInterface $container, UrlGeneratorInterface $router, Twig_Environment $twig)
     {
         $this->rootDir = $rootDir;
         $this->filesystem = $filesystem;
         $this->entityManager = $entityManager;
         $this->ps = $ps;
+        $this->container = $container;
+        $this->router = $router;
+        $this->twig = $twig;
+    }
+
+    private function verifyOrigin(Environment $env)
+    {
+        $serverIp = $this->request->server->get('REMOTE_ADDR');
+        $validIps = $env->getValidIps();
+
+        if(!in_array($serverIp, $validIps)) {
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -55,8 +91,9 @@ class IpnListener
         foreach ($event->getData() as $key => $value) {
             $content .= sprintf("%s:%s%s", $key, $value, PHP_EOL);
         }
+        $fileName = sprintf('%s%s.txt', $path, time());
         file_put_contents(
-            sprintf('%s%s.txt', $path, time()),
+            $fileName,
             $content
         );
 
@@ -71,23 +108,105 @@ class IpnListener
                 ->getRepository('GSStructureBundle:Payment')
                 ->findOneByRef($data['Ref']);
 
+        if (null === $payment->getParent()) {
+            $hasParent = false;
+            $etranEnv = $payment->getItems()[0]
+                        ->getRegistration()
+                        ->getTopic()
+                        ->getActivity()
+                        ->getYear()
+                        ->getSociety()
+                        ->getPaymentEnvironment();
+            $account = $payment->getAccount();
+        } else {
+            $hasParent = true;
+            $etranEnv = $payment->getParent()->getItems()[0]
+                        ->getRegistration()
+                        ->getTopic()
+                        ->getActivity()
+                        ->getYear()
+                        ->getSociety()
+                        ->getPaymentEnvironment();
+            $account = $payment->getParent()->getAccount();
+        }
+
+        if ( !$this->verifyOrigin($etranEnv) ) {
+            file_put_contents(
+                    $fileName,
+                    sprintf("Message not coming from the bank server!%s", PHP_EOL),
+                    FILE_APPEND
+            );
+
+            return;
+        }
+
+        // ETAT_PBX:PBX_RECONDUCTION_ABT
         if ('00000' != $data['Erreur']) {
+            // Handle failure of a payment in 2 or 3 times
+            if (in_array('ETAT_PBX', $data) && $data['ETAT_PBX'] == 'PBX_RECONDUCTION_ABT') {
+                $newPayment = new Payment();
+                $newPayment->setAmount($payment->getRemainingAmount());
+                $newPayment->setParent($payment);
+
+                $transaction = new ETPayment();
+                $transaction->setCmd($newPayment->getRef());
+                $transaction->setEnvironment($etranEnv);
+                $transaction->setPorteur($account->getEmail());
+                $transaction->setTotal((int)($payment->getAmount() * 100));
+                $transaction->setUrlAnnule($this->container->getParameter('return_url_cancelled'));
+                $transaction->setUrlEffectue($this->container->getParameter('return_url_success'));
+                $transaction->setUrlRefuse($this->container->getParameter('return_url_rejected'));
+                $transaction->setIpnUrl($this->router->generateUrl('gs_etran_ipn', array(), UrlGeneratorInterface::ABSOLUTE_URL));
+
+                $buttonHtml = $this->twig->render('GSToolboxBundle:Default:button.html.twig', array(
+                    'transaction' => $transaction,
+                ));
+
+                $this->ps->sendEmailFailurePartialPayment($newPayment, $buttonHtml);
+
+                $em->persist($newPayment);
+                $em->flush();
+            }
+
             return false;
         } else {
-            $payment->getAccount()->addPayment($payment);
-            $payment->setState('PAID');
+            $montant = (float)$data['Mt'] / 100;
+            $alreadyPaid = $payment->getAlreadyPaid();
 
-            $repo = $em->getRepository('GSStructureBundle:Invoice');
-            if (null === $repo->findOneByPayment($payment)) {
-                $prefix = $payment->getDate()->format('Y');
-                $invoiceNumber = $repo->countByNumber($prefix) + 1;
-                $invoice = new Invoice($payment);
-                $invoice->setNumber($prefix . sprintf('%05d', $invoiceNumber));
-                $invoice->setDate($payment->getDate());
+            if (!$account->getPayments()->contains($payment)) {
+                $account->addPayment($payment);
+            }
 
-                $this->ps->sendEmail($payment);
+            $alreadyPaid += $montant;
+            $payment->setAlreadyPaid($alreadyPaid);
 
-                $em->persist($invoice);
+            if ($alreadyPaid >= $payment->getAmount()) {
+                $payment->setState('PAID');
+
+                if ($hasParent) {
+                    $payment->getParent()->setState('PAID');
+                    $invoicePayment = $payment->getParent();
+                } else {
+                    $invoicePayment = $payment;
+                }
+
+                $repo = $em->getRepository('GSStructureBundle:Invoice');
+                if (null === $repo->findOneByPayment($invoicePayment)) {
+                    $date = new \DateTime();
+                    $prefix = $date->format('Y');
+                    $invoiceNumber = $repo->countByNumber($prefix) + 1;
+                    $invoice = new Invoice($invoicePayment);
+                    $invoice->setNumber($prefix . sprintf('%05d', $invoiceNumber));
+                    $invoice->setDate($date);
+
+                    $this->ps->sendEmailSuccess($invoicePayment);
+
+                    $em->persist($invoice);
+                }
+
+            } else {
+                // This should never be reached in case of a child payment
+                $payment->setState('PAYMENT_IN_PROGRESS');
             }
         }
         $em->flush();

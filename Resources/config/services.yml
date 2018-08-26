@@ -26,5 +26,7 @@ services:
             - '@filesystem'
             - '@doctrine.orm.entity_manager'
             - '@gstoolbox.payment.service'
+            - '@service_container'
+            - '@router'
         tags:
             - { name: kernel.event_listener, event: gs_etran.ipn.received, method: onIpnReceived }
