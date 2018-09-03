@@ -28,5 +28,6 @@ services:
             - '@gstoolbox.payment.service'
             - '@service_container'
             - '@router'
+            - '@twig'
         tags:
             - { name: kernel.event_listener, event: gs_etran.ipn.received, method: onIpnReceived }

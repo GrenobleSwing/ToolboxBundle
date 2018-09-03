@@ -54,8 +54,13 @@ class IpnListener
     /**
      * Constructor.
      *
-     * @param string     $rootDir
-     * @param Filesystem $filesystem
+     * @param string                $rootDir
+     * @param Filesystem            $filesystem
+     * @param EntityManager         $entityManager
+     * @param PaymentService        $ps
+     * @param ContainerInterface    $container
+     * @param UrlGeneratorInterface $router
+     * @param Twig_Environment      $twig
      */
     public function __construct($rootDir, Filesystem $filesystem, EntityManager $entityManager, PaymentService $ps,
             ContainerInterface $container, UrlGeneratorInterface $router, Twig_Environment $twig)
@@ -69,9 +74,9 @@ class IpnListener
         $this->twig = $twig;
     }
 
-    private function verifyOrigin(Environment $env)
+    private function verifyOrigin(IpnEvent $event, Environment $env)
     {
-        $serverIp = $this->request->server->get('REMOTE_ADDR');
+        $serverIp = $event->getRemAddr();
         $validIps = $env->getValidIps();
 
         if(!in_array($serverIp, $validIps)) {
@@ -130,7 +135,7 @@ class IpnListener
             $account = $payment->getParent()->getAccount();
         }
 
-        if ( !$this->verifyOrigin($etranEnv) ) {
+        if ( !$this->verifyOrigin($event, $etranEnv) ) {
             file_put_contents(
                     $fileName,
                     sprintf("Message not coming from the bank server!%s", PHP_EOL),
