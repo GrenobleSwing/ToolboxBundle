@@ -151,7 +151,9 @@ class AccountBalanceService
         $due = $price;
 
         if (null !== $discount) {
-            $due -= $coeff * $discount->getAmount($price);
+            # If $price is used then the discount is correct for percent but not for abs value
+            # so using full price and applying the coeff after is better.
+            $due -= $coeff * $discount->getAmount($category->getPrice());
         } else {
             $line['discount'] = '';
         }
