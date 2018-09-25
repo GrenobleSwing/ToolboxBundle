@@ -176,7 +176,12 @@ class IpnListener
             return false;
         } else {
             $montant = (float)$data['Mt'] / 100;
-            $alreadyPaid = $payment->getAlreadyPaid();
+
+            if (in_array('ETAT_PBX', $data) && $data['ETAT_PBX'] == 'PBX_RECONDUCTION_ABT') {
+                $alreadyPaid = $payment->getAlreadyPaid();
+            } else {
+                $alreadyPaid = 0.0;
+            }
 
             if (!$account->getPayments()->contains($payment)) {
                 $account->addPayment($payment);
@@ -211,7 +216,7 @@ class IpnListener
 
             } else {
                 // This should never be reached in case of a child payment
-                $payment->setState('PAYMENT_IN_PROGRESS');
+                $payment->setState('IN_PRO');
             }
         }
         $em->flush();
