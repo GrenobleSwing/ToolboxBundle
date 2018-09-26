@@ -53,7 +53,7 @@ class MembershipService
             ->getMembershipRegistrationsForAccountAndYear($account, $year);
 
         foreach ($registrations as $registration) {
-            if ($registration->getState() == 'PAID') {
+            if ($registration->getState() == 'PAID' ||$registration->getState() == 'PAYMENT_IN_PROGRESS') {
                 return true;
             }
         }
