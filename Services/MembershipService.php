@@ -102,6 +102,7 @@ class MembershipService
             $membership->setAccount($account);
             $membership->setTopic($activity->getMembershipTopic());
             $membership->setAcceptRules($registration->getAcceptRules());
+            $membership->setRole("leader");
             $membership->validate();
             $this->entityManager->persist($membership);
             return $membership;
