@@ -5,8 +5,11 @@ namespace GS\ToolboxBundle\Services;
 use Doctrine\ORM\EntityManager;
 use Lexik\Bundle\MailerBundle\Message\MessageFactory;
 
+use GS\StructureBundle\Entity\Activity;
 use GS\StructureBundle\Entity\User;
 use GS\StructureBundle\Entity\Registration;
+use GS\StructureBundle\Entity\Topic;
+use GS\StructureBundle\Entity\Year;
 use GS\ToolboxBundle\Services\MembershipService;
 
 class RegistrationService
@@ -38,6 +41,39 @@ class RegistrationService
             $em->remove($payment);
         }
         $em->flush();
+    }
+
+    // Remove registrations that won't be needed anymore (when closing a topic for example)
+    public function cleanTopicRegistrations(Topic $topic)
+    {
+        $em = $this->entityManager;
+
+        $registrations = $em
+            ->getRepository('GSStructureBundle:Registration')
+            ->findByTopic($topic);
+
+        foreach ($registrations as $registration) {
+            if (in_array($registration->getState(),array("SUBMITTED", "WAITING", "VALIDATED"))) {
+                $em->remove($registration);
+            }
+        }
+        $em->flush();
+    }
+
+    // Remove registrations that won't be needed anymore (when closing a topic for example)
+    public function cleanActivityRegistrations(Activity $activity)
+    {
+        foreach ($activity->getTopics() as $topic) {
+            $this->cleanTopicRegistrations($topic);
+        }
+    }
+
+    // Remove registrations that won't be needed anymore (when closing a topic for example)
+    public function cleanYearRegistrations(Year $year)
+    {
+        foreach ($year->getActivities() as $activity) {
+            $this->cleanActivityRegistrations($activity);
+        }
     }
 
     // Not used yet
