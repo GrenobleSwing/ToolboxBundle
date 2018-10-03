@@ -68,7 +68,7 @@ class MembershipService
 
         $accounts = [];
         foreach ($registrations as $registration) {
-            if ($registration->getState() == 'PAID') {
+            if ($registration->getState() == 'PAID' || $registration->getState() == 'PAYMENT_IN_PROGRESS') {
                 $accounts[] = $registration->getAccount();
             } elseif (!$onlyPaid && $registration->getState() == 'VALIDATED') {
                 $accounts[] = $registration->getAccount();

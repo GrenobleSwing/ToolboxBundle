@@ -92,7 +92,7 @@ class IpnListener
      */
     public function onIpnReceived(IpnEvent $event)
     {
-        $path = sprintf('%s/../data/%s', $this->rootDir, date('Y\/m\/d\/'));
+        $path = sprintf('%s/../../data/ipn/%s', $this->rootDir, date('Y\/m\/d\/'));
         $this->filesystem->mkdir($path);
         $content = sprintf('Signature verification : %s%s', $event->isVerified() ? 'OK' : 'KO', PHP_EOL);
         foreach ($event->getData() as $key => $value) {
