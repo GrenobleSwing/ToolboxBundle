@@ -26,24 +26,21 @@ class PruneRegistrationCommand extends ContainerAwareCommand
                 'topic',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'Id of the topic to be cleaned?',
-                false
+                'Id of the topic to be cleaned?'
             )
 
             ->addOption(
                 'activity',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'Id of the activity to be cleaned?',
-                false
+                'Id of the activity to be cleaned?'
             )
 
             ->addOption(
                 'year',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'Id of the year to be cleaned?',
-                false
+                'Id of the year to be cleaned?'
             )
         ;
     }

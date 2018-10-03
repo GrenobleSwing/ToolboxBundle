@@ -54,6 +54,8 @@ class RegistrationService
 
         foreach ($registrations as $registration) {
             if (in_array($registration->getState(),array("SUBMITTED", "WAITING", "VALIDATED"))) {
+                // In case it is a validated registration there can be some draft payments attached
+                $this->cleanPayments($registration);
                 $em->remove($registration);
             }
         }
